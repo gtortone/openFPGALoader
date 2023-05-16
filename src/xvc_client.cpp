@@ -7,6 +7,7 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
@@ -22,6 +23,7 @@
 #include <regex>
 #include <utility>
 #include <vector>
+#include <cstring>
 
 #include "display.hpp"
 
@@ -231,6 +233,9 @@ bool XVC_client::open_connection(const string &ip_addr)
 		return false;
 	}
 
+   int i = 1;
+   setsockopt(_sock, IPPROTO_TCP, TCP_NODELAY, (void *)&i, sizeof(i));
+
 	if (connect(_sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
 		printError("Connection error");
 		close(_sock);
@@ -257,15 +262,27 @@ ssize_t XVC_client::xfer_pkt(const string &instr,
 			printError("Send error");
 			return -1;
 		}
+      //printInfo("tx " + std::to_string(len) + " bytes - errno: " + std::strerror(errno));
 	}
 
 	if (rx) {
-		len = recv(_sock, rx, rx_size, 0);
-		if (len < 0) {
-			printError("Receive error");
-		} else if (len == 0) {
-			fprintf(stderr, "Client orderly shut down the connection.\n");
-		}
+      if (instr == "shift:") {
+         len = recv(_sock, rx, rx_size, MSG_WAITALL);
+      } else {
+         len = recv(_sock, rx, rx_size, 0);
+      }
+
+      if (len < 0) {
+         printError("Receive error");
+      } else if (len == 0) {
+         fprintf(stderr, "Client orderly shut down the connection.\n");
+      }
+
+      /*
+      printInfo(" rx " + std::to_string(len) + " bytes - errno: " + std::strerror(errno) + " rx_size: " + 
+            std::to_string(rx_size) + " instr: " + instr + "\n");
+      */
+
 		rx[len] = '\0';
 		if (_verbose) {
 			printInfo("received " + std::to_string(len) + " Bytes (" +
