@@ -1,0 +1,1 @@
+./openFPGALoader -c xvc-client --ip 172.16.2.136 --port 2542 --bitstream file.bit
